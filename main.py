@@ -1,5 +1,6 @@
 # main.py
 import alpaca_trade_api as tradeapi
+from alpaca.data.historical import StockHistoricalDataClient
 import config
 from indicators import calculate_indicators, check_resonance_signal
 from options import get_best_itm_call

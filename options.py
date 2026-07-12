@@ -4,18 +4,18 @@ import datetime
 
 def get_best_itm_call(api, symbol, current_price):
     """
-    获取离当前价格最近的 ITM（价内）看涨期权
+    get the latest the ITM valuable options premium
     """
     try:
-        # 获取该股票的所有期权合约
+        # Get the option chain from sticker
         contracts = api.get_option_contracts(symbol)
 
-        # 筛选：选择即将到期的看涨期权（Call），且行权价低于当前股价（即 ITM）
+        # filer calls and ITM options
         itm_calls = []
         today = datetime.date.today()
 
         for c in contracts:
-            # 过滤：只要 Call，只要行权价小于当前股价（ITM）
+            # filter, only calls and ITM
             if c.type == 'call' and c.strike < current_price:
                 # 过滤到期日：选择距离今天最近的常规到期日（比如当周五）
                 expiration = datetime.datetime.strptime(c.expiration_date, "%Y-%m-%d").date()

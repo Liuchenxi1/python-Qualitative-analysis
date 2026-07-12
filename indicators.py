@@ -5,28 +5,28 @@ import pandas_ta as ta
 
 def calculate_indicators(bars_df):
     """
-    输入 Alpaca 的 K 线 DataFrame，返回计算好指标的 DataFrame
+    input Alpaca candlestick dataframe and return computed indicators
     """
     if bars_df.empty:
         return bars_df
 
-    # 1. 计算 MACD (12, 26, 9)
+    # 1. MACD (12, 26, 9)
     macd = bars_df.ta.macd(close='close', fast=12, slow=26, signal=9)
 
-    # 2. 计算 RSI (14)
+    # 2. RSI (14)
     rsi = bars_df.ta.rsi(close='close', length=14)
 
-    # 3. 计算 Momentum (10) -> 当前价减去10分钟前的价
+    # 3. Momentum (10)
     mom = bars_df.ta.mom(close='close', length=10)
 
-    # 将指标合并到原始数据中
+    # put the indexes into df
     df = pd.concat([bars_df, macd, rsi, mom], axis=1)
     return df
 
 
 def check_resonance_signal(df):
     """
-    检查倒数第二根K线（刚确立的一分钟）是否触发三强共振
+    checking the second candlestick signal if the 3 indexes send strong signal
     """
     if len(df) < 3:
         return False, 0.0
@@ -35,17 +35,17 @@ def check_resonance_signal(df):
     prev = df.iloc[-3]
     current_close = latest['close']
 
-    # 提取 MACD 信号
+    # MACA signal
     macd_gold_cross = (latest['MACD_12_26_9'] > latest['MACDS_12_26_9']) and (
                 prev['MACD_12_26_9'] <= prev['MACDS_12_26_9'])
 
-    # 提取 RSI 信号 (大于 50 且向上)
+    # RSI signal; RSI >50
     rsi_positive = (latest['RSI_14'] > 50) and (latest['RSI_14'] > prev['RSI_14'])
 
-    # 提取 Momentum 信号 (大于 0 且向上)
+    # Momentum >0 || Momentum up swig
     mom_positive = (latest['MOM_10'] > 0) and (latest['MOM_10'] > prev['MOM_10'])
 
-    # 三强共振触发
+    # 3 indexes all fit the requirements
     if macd_gold_cross and rsi_positive and mom_positive:
         return True, current_close
 

@@ -1,0 +1,118 @@
+# AAPL Options Signal Research
+
+An experimental quantitative-research project that uses Alpaca market data to explore MACD, RSI, Momentum, and moving-average crossover signals for Apple (`AAPL`). The long-term goal is to train an **unsupervised machine-learning model** on roughly 10 years of AAPL price history, identify market regimes, and produce research buy/sell signals for short-dated, in-the-money (ITM) options.
+
+> **Research only — not investment advice.** This repository is a prototype. It does not place orders, does not prove profitability, and should not be used for live trading without thorough validation, risk controls, and paper-trading tests.
+
+## Strategy concept
+
+The proposed strategy combines momentum indicators with a MACD signal-line crossover:
+
+| Component | Bullish / gold-cross setup | Bearish / death-cross setup |
+| --- | --- | --- |
+| MACD | MACD crosses **above** its signal line while MACD is below zero | MACD crosses **below** its signal line; the exact mirrored threshold is a research parameter |
+| RSI (14) | Below 30, indicating an oversold condition | Mirrored overbought condition (for example, above 70) to be tested |
+| Momentum (10) | Below 0.00, then recovering with the crossover | Mirrored positive / weakening momentum to be tested |
+| Intended action | Research a near-the-money ITM call expiring about five calendar days later | Research an exit, bearish signal, or ITM put scenario; this must be defined before backtesting |
+
+In plain language: look for an **oversold, negative-momentum environment**, then act only when MACD confirms a potential reversal through a gold cross. A death cross is the opposing confirmation and is intended to drive the sell/bearish side of the system.
+
+The precise death-cross action is deliberately left configurable: selling an existing call, buying a put, or simply moving to cash are materially different strategies and need separate backtests.
+
+## Current repository status
+
+The current code is an early Alpaca-connected prototype:
+
+- `indicators.py` calculates MACD (12, 26, 9), RSI (14), and Momentum (10) using `pandas-ta`.
+- `check_resonance_signal()` currently detects a **gold cross** together with RSI above 50 and rising, plus positive and rising Momentum. This is not yet the requested oversold reversal rule.
+- `options.py` finds an available ITM **call contract** nearest the current share price. It selects contracts that have not expired, but it does not yet enforce a five-day expiration target or retrieve option premiums.
+- `main.py` polls recent one-minute bars from Alpaca. Its current default symbol is `SPCX`; the research/backtest target described here is `AAPL`.
+- Tests cover indicator behavior with mock candles and an optional Alpaca connectivity/data check.
+
+## Planned research workflow
+
+```mermaid
+flowchart LR
+    A["Alpaca AAPL historical bars\n~10 years"] --> B["Feature engineering\nMACD, RSI, Momentum, returns, volatility"]
+    B --> C["Unsupervised model\ncluster market regimes"]
+    C --> D["Rule engine\ngold/death crosses + thresholds"]
+    D --> E["Backtest signals\nunderlying-price proxy first"]
+    E --> F["Options backtest\nwhen historical option quotes are available"]
+```
+
+1. Download and clean approximately ten years of AAPL daily data from Alpaca. Keep timestamps, corporate-action handling, and data source documented.
+2. Create features from returns, volatility, volume, MACD, RSI, Momentum, and moving-average/crossover state. Normalize features without leaking future information.
+3. Fit an unsupervised method such as K-Means, Gaussian Mixture Models, or HDBSCAN to find market regimes. The model should describe market states; it does **not** directly learn profitable buy/sell labels.
+4. Evaluate the proposed gold- and death-cross rules within each discovered regime. Use walk-forward splits so future data never influences earlier decisions.
+5. Backtest first against AAPL share-price returns, including trading costs and slippage assumptions. Report returns, drawdown, win rate, Sharpe-like risk metrics, and trade counts.
+6. Add historical option-chain quotes before claiming options results. Calculate contracts with approximately five calendar days to expiration, enforce ITM selection, and include bid/ask spreads, commissions, assignment/exercise risk, and expiration effects.
+
+## Important limitation: option prices
+
+Option **contract metadata** (symbol, strike, expiration) is not enough to calculate an options backtest. A realistic test needs historical bid/ask or trade prices for each selected contract, plus a clear execution assumption. Until that data is available, this project can validate the signal logic only with an AAPL underlying-price proxy—not an options P&L.
+
+## Setup
+
+Use Python 3.10+ in a virtual environment, then install the libraries used by the prototype:
+
+```bash
+python -m venv .venv
+# macOS/Linux
+source .venv/bin/activate
+# Windows PowerShell
+# .venv\\Scripts\\Activate.ps1
+
+pip install alpaca-py alpaca-trade-api pandas pandas-ta pytest
+```
+
+Create a local `config.py` file (it is intentionally ignored by Git):
+
+```python
+API_KEY = "your_alpaca_key"
+SECRET_KEY = "your_alpaca_secret"
+BASE_URL = "https://paper-api.alpaca.markets"
+```
+
+Never commit API keys, secret keys, certificates, or brokerage credentials.
+
+## Running the prototype
+
+After configuring Alpaca credentials, run:
+
+```bash
+python main.py
+```
+
+Run the tests with:
+
+```bash
+pytest
+```
+
+The connectivity test needs valid Alpaca credentials and market-data access. The indicator mock test can be used independently of live account access.
+
+## Roadmap
+
+- [ ] Switch the research configuration to AAPL and retrieve ten years of historical bars.
+- [ ] Implement the requested oversold gold-cross entry: MACD below zero, RSI below 30, Momentum below 0, followed by confirmation.
+- [ ] Define and implement the corresponding death-cross exit/bearish rule.
+- [ ] Add regime clustering and walk-forward evaluation.
+- [ ] Add reproducible backtest reports and visualizations.
+- [ ] Enforce approximately five days to expiration and ITM contract selection.
+- [ ] Integrate historical options pricing before evaluating options returns.
+- [ ] Add position sizing, stop-loss/exit rules, transaction costs, and paper-trading safeguards.
+
+## Project structure
+
+```text
+.
+├── main.py          # Prototype polling loop and signal scan
+├── indicators.py    # MACD, RSI, Momentum, and gold-cross logic
+├── options.py       # ITM option-contract selection
+├── tests/           # Indicator and Alpaca connectivity tests
+└── README.md
+```
+
+## License
+
+No license has been selected yet. Add one before distributing or reusing this project publicly.

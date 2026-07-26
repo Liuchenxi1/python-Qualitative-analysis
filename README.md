@@ -96,12 +96,11 @@ The connectivity test needs valid Alpaca credentials and market-data access. The
 
 ```text
 .
-â”œâ”€â”€ main.py          # Prototype polling loop and signal scan
-â”œâ”€â”€ indicators.py    # MACD, RSI, Momentum, and gold-cross logic
-â”œâ”€â”€ options.py       # ITM option-contract selection
-â”œâ”€â”€ tests/           # Indicator and Alpaca connectivity tests
-â””â”€â”€ README.md
-```
+|-- main.py          # Prototype polling loop and signal scan
+|-- indicators.py    # MACD, RSI, Momentum, and gold-cross logic
+|-- options.py       # ITM option-contract selection
+|-- tests/           # Indicator and Alpaca connectivity tests
+`-- README.md```
 
 ## License
 

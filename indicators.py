@@ -36,8 +36,8 @@ def check_resonance_signal(df):
     current_close = latest['close']
 
     # MACA signal
-    macd_gold_cross = (latest['MACD_12_26_9'] > latest['MACDS_12_26_9']) and (
-                prev['MACD_12_26_9'] <= prev['MACDS_12_26_9'])
+    macd_gold_cross = (latest['MACD_12_26_9'] > latest['MACDs_12_26_9']) and (
+                prev['MACD_12_26_9'] <= prev['MACDs_12_26_9'])
 
     # RSI signal; RSI >50
     rsi_positive = (latest['RSI_14'] > 50) and (latest['RSI_14'] > prev['RSI_14'])

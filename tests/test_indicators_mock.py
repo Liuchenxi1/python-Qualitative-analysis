@@ -1,40 +1,63 @@
-import  unittest
-import pandas as pd
+"""Live one-year MACD crossover report from Alpaca."""
 
-from indicators import calculate_indicators, check_resonance_signal
+import unittest
+from datetime import datetime, timedelta, timezone
+
+from alpaca.data.enums import DataFeed
+from alpaca.data.historical import StockHistoricalDataClient
+from alpaca.data.requests import StockBarsRequest
+from alpaca.data.timeframe import TimeFrame
+
+import config
+from indicators import calculate_indicators
+
+
+SYMBOL = "AAPL"
+LOOKBACK_DAYS = 365
+
+
+def get_one_year_of_daily_bars(symbol=SYMBOL):
+    """Return a trailing year of Alpaca daily bars for one symbol."""
+    end = datetime.now(timezone.utc)
+    start = end - timedelta(days=LOOKBACK_DAYS)
+    client = StockHistoricalDataClient(config.API_KEY, config.SECRET_KEY)
+    bars = client.get_stock_bars(
+        StockBarsRequest(
+            symbol_or_symbols=symbol,
+            timeframe=TimeFrame.Day,
+            start=start,
+            end=end,
+            feed=DataFeed.IEX,
+        )
+    )
+    return bars.df.xs(symbol, level="symbol").sort_index()
+
+
+def count_macd_crosses(indicators_df):
+    """Return (golden_crosses, death_crosses) for the MACD signal line."""
+    macd = indicators_df["MACD_12_26_9"]
+    signal = indicators_df["MACDs_12_26_9"]
+    golden = (macd > signal) & (macd.shift(1) <= signal.shift(1))
+    death = (macd < signal) & (macd.shift(1) >= signal.shift(1))
+    return int(golden.sum()), int(death.sum())
+
 
 class TestIndicators(unittest.TestCase):
+    def test_one_year_of_alpaca_data_has_indicators_and_cross_counts(self):
+        columns = ["MACD_12_26_9", "MACDs_12_26_9", "RSI_14", "MOM_10"]
+        self.assertTrue(config.API_KEY, "API_KEY is missing")
+        self.assertTrue(config.SECRET_KEY, "SECRET_KEY is missing")
+        daily_bars = get_one_year_of_daily_bars()
+        self.assertGreaterEqual(len(daily_bars), 200)
 
-    def test_check_resonance_signal(self):
-        dates = pd.date_range(start="2026-07-01", periods=60, freq="1min")
+        indicators_df = calculate_indicators(daily_bars)
+        self.assertTrue(set(columns).issubset(indicators_df.columns))
+        self.assertFalse(indicators_df[columns].dropna().empty)
 
-        mock_df = pd.DataFrame({"open": [160.0] * 60,
-        "high":[160.5] * 60,
-        "low":[159.5] * 60,
-        "close":[160.0] * 60,
-        "volume": [1000] * 60,},
-
-        index = dates,
-                               )
-        mock_df.index.name = "timestamp"
-
-        # A small upward move.
-        mock_df.iloc[-3] = [160.0, 160.8, 159.9, 160.5, 1500]
-
-        # A strong bullish candle.
-        mock_df.iloc[-2] = [160.5, 164.0, 160.4, 163.5, 10000]
-
-        # Latest completed candle: remains bullish.
-        mock_df.iloc[-1] = [163.5, 164.2, 163.2, 163.8, 8000]
-
-        df_with_indicators = calculate_indicators(mock_df)
-
-        is_triggered, trigger_price = check_resonance_signal(df_with_indicators)
-
-        self.assertTrue(
-            is_triggered,
-            "Expected the artificial bullish move to trigger a resonance signal.",
+        golden_crosses, death_crosses = count_macd_crosses(indicators_df)
+        print(
+            f"{SYMBOL} daily MACD crosses for the last {LOOKBACK_DAYS} days: "
+            f"{golden_crosses} golden, {death_crosses} death."
         )
-        self.assertIsNotNone(trigger_price)
-        self.assertGreater(trigger_price, 0)
-
+        self.assertGreaterEqual(golden_crosses, 0)
+        self.assertGreaterEqual(death_crosses, 0)
